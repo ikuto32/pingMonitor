@@ -3,9 +3,9 @@ from logging.handlers import TimedRotatingFileHandler
 import os
 import subprocess
 import time
-from datetime import datetime
 import wandb
-import requests
+import pycurl
+from io import BytesIO
 
 wandb.init(project="ping_monitor", entity="ikuto0894")  # プロジェクト名とWandBユーザー名を設定
 
@@ -36,30 +36,42 @@ def setup_logger(log_dir="logs", log_filename="app.log"):
 
 def ping(url):
     try:
-        res = requests.get(url)
-        response_time = res.elapsed.total_seconds() * 1000
-        return True, response_time
+        buffer = BytesIO()
+        c = pycurl.Curl()
+        c.setopt(10002, url)
+        c.setopt(10001, buffer)
+        c.perform()
+        body = buffer.getvalue()
+
+        print('TOTAL_TIME: %f' % c.getinfo(c.TOTAL_TIME))
+        print('CONNECT_TIME: %f' % c.getinfo(c.CONNECT_TIME))
+        print('PRETRANSFER_TIME: %f' % c.getinfo(c.PRETRANSFER_TIME))
+        print('STARTTRANSFER_TIME: %f' % c.getinfo(c.STARTTRANSFER_TIME))
+        TOTAL_TIME = c.getinfo(c.TOTAL_TIME)
+        CONNECT_TIME = c.getinfo(c.CONNECT_TIME)
+        PRETRANSFER_TIME = c.getinfo(c.PRETRANSFER_TIME)
+        STARTTRANSFER_TIME = c.getinfo(c.STARTTRANSFER_TIME)
+        return True, {"TOTAL_TIME":TOTAL_TIME, "CONNECT_TIME":CONNECT_TIME, "PRETRANSFER_TIME":PRETRANSFER_TIME, "STARTTRANSFER_TIME":STARTTRANSFER_TIME}
     except subprocess.CalledProcessError:
         return False, 2000
 
 
-def log_result(response_time):
+def log_result(timeResponses):
     log_data = {}
-    if response_time is not None:
-        log_data["response_time_ms"] = response_time
+    if timeResponses is not None:
+        log_data = timeResponses
     wandb.log(log_data)
-    print(response_time)
     logger = setup_logger()
-    logger.info(f"response_time_ms:{response_time}")
+    logger.info(f"response_time_ms:{timeResponses}")
 
 
 def main():
     url = "https://www.google.com/"  # GoogleのDNSサーバー
-    interval = 1  # 60秒ごとにpingを実行
+    interval = 5  # 5秒ごとにpingを実行
 
     while True:
-        success, response_time = ping(url)
-        log_result(response_time)
+        success, timeResponses = ping(url)
+        log_result(timeResponses)
         time.sleep(interval)
     wandb.finish()
 
