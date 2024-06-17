@@ -51,27 +51,27 @@ def ping(url):
         CONNECT_TIME = c.getinfo(c.CONNECT_TIME)
         PRETRANSFER_TIME = c.getinfo(c.PRETRANSFER_TIME)
         STARTTRANSFER_TIME = c.getinfo(c.STARTTRANSFER_TIME)
-        return True, {"TOTAL_TIME":TOTAL_TIME, "CONNECT_TIME":CONNECT_TIME, "PRETRANSFER_TIME":PRETRANSFER_TIME, "STARTTRANSFER_TIME":STARTTRANSFER_TIME}
-    except subprocess.CalledProcessError:
-        return False, 2000
+        return {"TOTAL_TIME":TOTAL_TIME, "CONNECT_TIME":CONNECT_TIME, "PRETRANSFER_TIME":PRETRANSFER_TIME, "STARTTRANSFER_TIME":STARTTRANSFER_TIME}
+    except:
+        return {"TOTAL_TIME":1000.0, "CONNECT_TIME":1000.0, "PRETRANSFER_TIME":1000.0, "STARTTRANSFER_TIME":1000.0}
 
 
-def log_result(timeResponses):
+def log_result(timeResponses, logger):
     log_data = {}
     if timeResponses is not None:
         log_data = timeResponses
     wandb.log(log_data)
-    logger = setup_logger()
-    logger.info(f"response_time_ms:{timeResponses}")
+    logger.info(f"time_Responses:{timeResponses}")
 
 
 def main():
     url = "https://www.google.com/"  # GoogleのDNSサーバー
     interval = 5  # 5秒ごとにpingを実行
+    logger = setup_logger()
 
     while True:
-        success, timeResponses = ping(url)
-        log_result(timeResponses)
+        timeResponses = ping(url)
+        log_result(timeResponses, logger)
         time.sleep(interval)
     wandb.finish()
 
